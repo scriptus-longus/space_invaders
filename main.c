@@ -14,58 +14,72 @@ struct Player {
   int y;
 
   char skin;
+  int *bullets;
+};
+
+struct bullet {
+  int x;
+  int y;
+  
+  char skin;
+  int *next_bullet;  
 };
 
 struct Player player;
 
+void shoot(struct Player *player) {
+}
+
 int main() {
   bool quit = false;
-
-  player.x = 0;
-  player.y = 0;
+  char c;
+  char tmp;
   player.skin = '#';
 
   initscr();
 
   curs_set(0);  
+  nodelay(stdscr, true);
   noecho();
+  cbreak();
+
   getmaxyx(stdscr, SCREEN_HEIGHT, SCREEN_WIDTH);
-  //cbreak();
+  player.x = SCREEN_WIDTH/2;
+  player.y = (SCREEN_HEIGHT/3) *2;
 
   while (!quit) {
     clear();
     mvprintw(player.y, player.x, &player.skin);
-    mvprintw(20, 20, "%d, %d", player.x, player.y);
 
-    char c = getch();
+    c = 'e';
+    while ((tmp = getch()) != EOF) {
+      c = tmp;
+    }
 
+    mvprintw(0,0, "%c\n",  c);
     switch (c) {
       case 'q':
         quit = true; 
         break;
+      case ' ':
+        shoot(&player);
+        break;
       case 'j':
-        if (player.y != 0) {
-          player.y -= 1;
-        }
-        break;
-      case 'k':
-        if (player.y < SCREEN_HEIGHT-1) {
-          player.y += 1;
-        }
-        break;
-      case 'h':
         if (player.x != 0) {
           player.x -= 1;
         }
         break;
-      case 'l':
+      case 'k':
         if (player.x < SCREEN_WIDTH-1) {
           player.x += 1;
         }
         break;
+      default:
+        break;
     }
 
     refresh();
+    napms(80);
   }
   endwin();
 
