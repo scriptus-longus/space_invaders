@@ -119,18 +119,13 @@ int main() {
 
   while (!quit) {
     clear();
-
     draw_game(&player);
-    //mvprintw(player.y, player.x, &player.skin);
-
-    if (player.bullets != 0) {
-      mvprintw(0, 0, "%p", get_last_bullet(player.bullets));
-    }
 
     c = 'e';
     while ((tmp = getch()) != EOF) {
       c = tmp;
     }
+    
     switch (c) {
       case 'q':
         quit = true; 
