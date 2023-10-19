@@ -5,7 +5,6 @@
 int SCREEN_WIDTH, SCREEN_HEIGHT;
 
 // TODO: code enemies
-// TODO: create bullets
 // TODO: check for hits
 // TODO: new animation cycle
 
@@ -14,7 +13,7 @@ struct Player {
   int y;
 
   char skin;
-  int *bullets;
+  struct bullet* bullets;
 };
 
 struct bullet {
@@ -22,12 +21,82 @@ struct bullet {
   int y;
   
   char skin;
-  int *next_bullet;  
+  struct bullet* next_bullet;  
 };
 
 struct Player player;
 
+struct bullet* get_last_bullet(struct bullet *b) {
+  while (b->next_bullet != 0) {
+    b  = b->next_bullet; 
+  }
+  return b;
+}
+
+struct bullet* pop_bullet(struct Player *p, struct bullet *b) {
+  if (b->next_bullet != 0) {
+    p->bullets = b->next_bullet;
+  } else {
+    p->bullets = 0;
+  }
+  free(b);
+  return p->bullets;
+}
+
 void shoot(struct Player *player) {
+  struct bullet *current_bullet;
+  struct bullet *next_bullet;
+
+  if (player->bullets != 0) {
+    current_bullet = get_last_bullet(player->bullets); 
+
+    next_bullet = (struct bullet*) malloc(sizeof(struct bullet));
+    current_bullet->next_bullet  = next_bullet;
+  } else {
+    next_bullet = (struct bullet*) malloc(sizeof(struct bullet));
+    player->bullets  = next_bullet;
+  }
+
+  next_bullet->next_bullet = 0;
+  next_bullet->x = player->x;
+  next_bullet->y = player->y-1;
+  next_bullet->skin = '.';
+}
+
+void draw_game(struct Player *player) {
+  mvprintw(player->y, player->x, &(player->skin)); 
+
+  if (player->bullets != 0) {
+    struct bullet *current_bullet = player->bullets;
+
+    while (current_bullet != 0) {
+      mvprintw(current_bullet->y, current_bullet->x, &(current_bullet->skin)); 
+      current_bullet = current_bullet->next_bullet;
+    }
+  } 
+}
+
+void update_coords(struct Player *player) {
+  if (player->bullets != 0) {
+    struct bullet *current_bullet = player->bullets;
+    while (current_bullet != 0) {
+      current_bullet->y -= 1;
+      current_bullet = current_bullet->next_bullet;
+    }
+  } 
+}
+
+void clean_object_collision(struct Player *player) {
+  if (player->bullets != 0) {
+    struct bullet *current_bullet = player->bullets;
+    while (current_bullet->y < 0) {
+      current_bullet = pop_bullet(player, current_bullet);
+      if (current_bullet == 0) {
+        break;
+      }
+    }
+    
+  }
 }
 
 int main() {
@@ -46,17 +115,22 @@ int main() {
   getmaxyx(stdscr, SCREEN_HEIGHT, SCREEN_WIDTH);
   player.x = SCREEN_WIDTH/2;
   player.y = (SCREEN_HEIGHT/3) *2;
+  player.bullets = 0;
 
   while (!quit) {
     clear();
-    mvprintw(player.y, player.x, &player.skin);
+
+    draw_game(&player);
+    //mvprintw(player.y, player.x, &player.skin);
+
+    if (player.bullets != 0) {
+      mvprintw(0, 0, "%p", get_last_bullet(player.bullets));
+    }
 
     c = 'e';
     while ((tmp = getch()) != EOF) {
       c = tmp;
     }
-
-    mvprintw(0,0, "%c\n",  c);
     switch (c) {
       case 'q':
         quit = true; 
@@ -77,6 +151,9 @@ int main() {
       default:
         break;
     }
+
+    update_coords(&player);
+    clean_object_collision(&player); // collisions of objects that do not terminate game (no player collision)    
 
     refresh();
     napms(80);
