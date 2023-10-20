@@ -2,28 +2,40 @@
 #include <ncurses.h>
 #include <stdlib.h>
 
+
+#define N_INVADERS 55
 int SCREEN_WIDTH, SCREEN_HEIGHT;
 
-// TODO: code enemies
 // TODO: check for hits
 // TODO: new animation cycle
 
 struct Player {
-  int x;
-  int y;
+  signed int x;
+  signed int y;
 
   char skin;
   struct bullet* bullets;
 };
 
-struct bullet {
-  int x;
+struct Invaders {
+  int x;   // top left
   int y;
+ 
+  unsigned int mov_dir;
+
+  char skin;
+  int status[N_INVADERS]; 
+};
+
+struct bullet {
+  signed int x;
+  signed int y;
   
   char skin;
   struct bullet* next_bullet;  
 };
 
+struct Invaders invaders;
 struct Player player;
 
 struct bullet* get_last_bullet(struct bullet *b) {
@@ -63,7 +75,7 @@ void shoot(struct Player *player) {
   next_bullet->skin = '.';
 }
 
-void draw_game(struct Player *player) {
+void draw_game(struct Player *player, struct Invaders *invaders) {
   mvprintw(player->y, player->x, &(player->skin)); 
 
   if (player->bullets != 0) {
@@ -74,16 +86,27 @@ void draw_game(struct Player *player) {
       current_bullet = current_bullet->next_bullet;
     }
   } 
+
+  for (int i = 0; i < N_INVADERS; i++) {
+    if (invaders->status[i] == 1) {
+      mvprintw(invaders->y + (i/11)*2, invaders->x + (i % 11)*2, &(invaders->skin));
+    }
+  }
 }
 
-void update_coords(struct Player *player) {
+void update_coords(int W, int H, struct Player *player, struct Invaders *invaders) {
   if (player->bullets != 0) {
     struct bullet *current_bullet = player->bullets;
     while (current_bullet != 0) {
       current_bullet->y -= 1;
       current_bullet = current_bullet->next_bullet;
     }
-  } 
+  }
+  if (invaders->x <= 0 || invaders->x + 2*11 >= W) {
+    invaders->mov_dir *= -1;
+    invaders->y += 1;
+  }
+  invaders->x += invaders->mov_dir*1;
 }
 
 void clean_object_collision(struct Player *player) {
@@ -95,7 +118,6 @@ void clean_object_collision(struct Player *player) {
         break;
       }
     }
-    
   }
 }
 
@@ -103,7 +125,14 @@ int main() {
   bool quit = false;
   char c;
   char tmp;
+
   player.skin = '#';
+  player.bullets = 0;
+
+  invaders.skin = '@';
+  for (int i = 0; i < N_INVADERS; i++) {
+    invaders.status[i] = 1;
+  }
 
   initscr();
 
@@ -114,18 +143,25 @@ int main() {
 
   getmaxyx(stdscr, SCREEN_HEIGHT, SCREEN_WIDTH);
   player.x = SCREEN_WIDTH/2;
-  player.y = (SCREEN_HEIGHT/3) *2;
-  player.bullets = 0;
+  player.y = (SCREEN_HEIGHT/4) *3;
+  invaders.x = SCREEN_WIDTH/2 - 10;
+  invaders.y = (SCREEN_HEIGHT/4);
+  invaders.mov_dir = -1;
 
   while (!quit) {
     clear();
-    draw_game(&player);
+
+    draw_game(&player, &invaders);
+    mvprintw(invaders.y, invaders.x, &player.skin);
+
+    if (player.bullets != 0) {
+      mvprintw(0, 0, "%p", get_last_bullet(player.bullets));
+    }
 
     c = 'e';
     while ((tmp = getch()) != EOF) {
       c = tmp;
     }
-    
     switch (c) {
       case 'q':
         quit = true; 
@@ -147,7 +183,7 @@ int main() {
         break;
     }
 
-    update_coords(&player);
+    update_coords(SCREEN_WIDTH, SCREEN_HEIGHT, &player, &invaders);
     clean_object_collision(&player); // collisions of objects that do not terminate game (no player collision)    
 
     refresh();
