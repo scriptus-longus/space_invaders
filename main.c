@@ -1,7 +1,8 @@
 //#include <stdio.h>
 #include <ncurses.h>
 #include <stdlib.h>
-
+#include <math.h>
+#include <stdio.h>
 
 #define N_INVADERS 55
 int SCREEN_WIDTH, SCREEN_HEIGHT;
@@ -109,13 +110,64 @@ void update_coords(int W, int H, struct Player *player, struct Invaders *invader
   invaders->x += invaders->mov_dir*1;
 }
 
-void clean_object_collision(struct Player *player) {
+
+int diff(int a, int b) {
+  return abs(a - b);
+}
+
+void unlink_bullet(struct bullet *prev_bullet, struct bullet *bullet) {
+  prev_bullet->next_bullet = bullet->next_bullet;
+  free(bullet);
+}
+
+void clean_object_collision(struct Player *player, struct Invaders *invaders) {
   if (player->bullets != 0) {
     struct bullet *current_bullet = player->bullets;
-    while (current_bullet->y < 0) {
-      current_bullet = pop_bullet(player, current_bullet);
-      if (current_bullet == 0) {
-        break;
+    struct bullet *prev_bullet = 0;
+    bool free_current_bullet = false;
+    int x_diff;
+    int y_diff;
+
+    current_bullet = player->bullets;
+
+    while (current_bullet != 0) {
+      // remove all bullets that are offscreen 
+      if (current_bullet->y < 0) {
+        current_bullet = pop_bullet(player, current_bullet);
+        if (current_bullet == 0) {
+          break;
+        }
+      }
+
+      // compute distance to invader block
+      x_diff = current_bullet->x - invaders->x;
+      y_diff = current_bullet->y - invaders->y;     
+      if (( x_diff < 11*2 && x_diff >= 0 ) && (y_diff < 5*2 && y_diff >= 0)) {
+        if (invaders->status[(y_diff/2)*11 + x_diff/2] != 0) {
+          invaders->status[(y_diff/2)*11 + x_diff/2] = 0;
+          
+          // unlink bullet from linked list
+          if (prev_bullet == 0) {
+            player->bullets = current_bullet->next_bullet;
+          } else {
+            prev_bullet->next_bullet = current_bullet->next_bullet;
+          }
+          free_current_bullet = true;
+        }  
+      }
+      // free the unlinked bullet if necessary
+      if (free_current_bullet) {
+        if (prev_bullet == 0) {
+          free(current_bullet);
+          current_bullet  = player->bullets;
+        } else {
+          free(current_bullet);
+          current_bullet = prev_bullet->next_bullet;
+        }
+        free_current_bullet = false;
+      } else {
+        prev_bullet = current_bullet;
+        current_bullet = prev_bullet->next_bullet;
       }
     }
   }
@@ -154,6 +206,10 @@ int main() {
     draw_game(&player, &invaders);
     mvprintw(invaders.y, invaders.x, &player.skin);
 
+    if (player.bullets != 0) {
+      mvprintw(0, 0, "%p", get_last_bullet(player.bullets));
+    }
+
     c = 'e';
     while ((tmp = getch()) != EOF) {
       c = tmp;
@@ -167,12 +223,12 @@ int main() {
         break;
       case 'j':
         if (player.x != 0) {
-          player.x -= 1;
+          player.x -= 2;
         }
         break;
       case 'k':
         if (player.x < SCREEN_WIDTH-1) {
-          player.x += 1;
+          player.x += 2;
         }
         break;
       default:
@@ -180,7 +236,7 @@ int main() {
     }
 
     update_coords(SCREEN_WIDTH, SCREEN_HEIGHT, &player, &invaders);
-    clean_object_collision(&player); // collisions of objects that do not terminate game (no player collision)    
+    clean_object_collision(&player, &invaders); // collisions of objects that do not terminate game (no player collision)    
 
     refresh();
     napms(80);
