@@ -205,11 +205,7 @@ int main() {
 
     draw_game(&player, &invaders);
     mvprintw(invaders.y, invaders.x, &player.skin);
-
-    if (player.bullets != 0) {
-      mvprintw(0, 0, "%p", get_last_bullet(player.bullets));
-    }
-
+    
     c = 'e';
     while ((tmp = getch()) != EOF) {
       c = tmp;
