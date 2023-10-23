@@ -7,8 +7,8 @@
 #define N_INVADERS 55
 int SCREEN_WIDTH, SCREEN_HEIGHT;
 
-// TODO: check for hits
-// TODO: new animation cycle
+// TODO: add shooting ability to invaders
+// TODO: maybe add protection
 
 struct Player {
   signed int x;
