@@ -6,9 +6,10 @@
 
 #define N_INVADERS 55
 int SCREEN_WIDTH, SCREEN_HEIGHT;
+int SCORE;
 
-// TODO: add shooting ability to invaders
-// TODO: maybe add protection
+// TODO: check for hits
+// TODO: new animation cycle
 
 struct Player {
   signed int x;
@@ -93,9 +94,10 @@ void draw_game(struct Player *player, struct Invaders *invaders) {
       mvprintw(invaders->y + (i/11)*2, invaders->x + (i % 11)*2, &(invaders->skin));
     }
   }
+  mvprintw(0,SCREEN_WIDTH-18, "Score: %d", SCORE);
 }
 
-void update_coords(int W, int H, struct Player *player, struct Invaders *invaders) {
+void update_coords(struct Player *player, struct Invaders *invaders) {
   if (player->bullets != 0) {
     struct bullet *current_bullet = player->bullets;
     while (current_bullet != 0) {
@@ -103,7 +105,7 @@ void update_coords(int W, int H, struct Player *player, struct Invaders *invader
       current_bullet = current_bullet->next_bullet;
     }
   }
-  if (invaders->x <= 0 || invaders->x + 2*11 >= W) {
+  if (invaders->x <= 0 || invaders->x + 2*11 >= SCREEN_WIDTH) {
     invaders->mov_dir *= -1;
     invaders->y += 1;
   }
@@ -145,7 +147,8 @@ void clean_object_collision(struct Player *player, struct Invaders *invaders) {
       if (( x_diff < 11*2 && x_diff >= 0 ) && (y_diff < 5*2 && y_diff >= 0)) {
         if (invaders->status[(y_diff/2)*11 + x_diff/2] != 0) {
           invaders->status[(y_diff/2)*11 + x_diff/2] = 0;
-          
+          SCORE += 100;
+      
           // unlink bullet from linked list
           if (prev_bullet == 0) {
             player->bullets = current_bullet->next_bullet;
@@ -194,6 +197,7 @@ int main() {
   cbreak();
 
   getmaxyx(stdscr, SCREEN_HEIGHT, SCREEN_WIDTH);
+  SCORE = 0;
   player.x = SCREEN_WIDTH/2;
   player.y = (SCREEN_HEIGHT/4) *3;
   invaders.x = SCREEN_WIDTH/2 - 10;
@@ -205,7 +209,11 @@ int main() {
 
     draw_game(&player, &invaders);
     mvprintw(invaders.y, invaders.x, &player.skin);
-    
+
+    //if (player.bullets != 0) {
+    //  mvprintw(0, 0, "%p", get_last_bullet(player.bullets));
+    //}
+
     c = 'e';
     while ((tmp = getch()) != EOF) {
       c = tmp;
@@ -231,7 +239,7 @@ int main() {
         break;
     }
 
-    update_coords(SCREEN_WIDTH, SCREEN_HEIGHT, &player, &invaders);
+    update_coords(&player, &invaders);
     clean_object_collision(&player, &invaders); // collisions of objects that do not terminate game (no player collision)    
 
     refresh();
