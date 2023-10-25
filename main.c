@@ -5,12 +5,14 @@
 #include <stdio.h>
 
 #define N_INVADERS 55
+#define PROB_MAX_VALUE 6
 int SCREEN_WIDTH, SCREEN_HEIGHT;
 int SCORE;
 
 // TODO: check for hits
 // TODO: new animation cycle
-
+// TODO: fix memory issues
+ 
 struct Player {
   signed int x;
   signed int y;
@@ -27,6 +29,7 @@ struct Invaders {
 
   char skin;
   int status[N_INVADERS]; 
+  struct bullet* bullets;
 };
 
 struct bullet {
@@ -47,14 +50,18 @@ struct bullet* get_last_bullet(struct bullet *b) {
   return b;
 }
 
-struct bullet* pop_bullet(struct Player *p, struct bullet *b) {
+struct bullet* pop_bullet(struct bullet** p, struct bullet *b) {
+  struct bullet *top_bullet = *p;
+
   if (b->next_bullet != 0) {
-    p->bullets = b->next_bullet;
+    *p = b->next_bullet;
   } else {
-    p->bullets = 0;
+    *p = 0;
   }
   free(b);
-  return p->bullets;
+
+  return top_bullet->next_bullet;
+  
 }
 
 void shoot(struct Player *player) {
@@ -77,11 +84,43 @@ void shoot(struct Player *player) {
   next_bullet->skin = '.';
 }
 
+void invaders_fire(struct Invaders *invaders) {
+  int r = rand() % PROB_MAX_VALUE;
+  if (r == 0) {
+    struct bullet *current_bullet;
+    struct bullet *next_bullet;
+
+    if (invaders->bullets != 0) {
+      current_bullet = get_last_bullet(invaders->bullets); 
+
+      next_bullet = (struct bullet*) malloc(sizeof(struct bullet));
+      current_bullet->next_bullet  = next_bullet;
+    } else {
+      next_bullet = (struct bullet*) malloc(sizeof(struct bullet));
+      invaders->bullets  = next_bullet;
+    }
+
+    next_bullet->next_bullet = 0;
+    next_bullet->x = invaders->x + (rand() % 11)*2;
+    next_bullet->y = invaders->y + rand() % 5;
+    next_bullet->skin = '.';
+  }
+}
+
 void draw_game(struct Player *player, struct Invaders *invaders) {
   mvprintw(player->y, player->x, &(player->skin)); 
 
   if (player->bullets != 0) {
     struct bullet *current_bullet = player->bullets;
+
+    while (current_bullet != 0) {
+      mvprintw(current_bullet->y, current_bullet->x, &(current_bullet->skin)); 
+      current_bullet = current_bullet->next_bullet;
+    }
+  } 
+
+  if (invaders->bullets != 0) {
+    struct bullet *current_bullet = invaders->bullets;
 
     while (current_bullet != 0) {
       mvprintw(current_bullet->y, current_bullet->x, &(current_bullet->skin)); 
@@ -105,6 +144,15 @@ void update_coords(struct Player *player, struct Invaders *invaders) {
       current_bullet = current_bullet->next_bullet;
     }
   }
+
+  if (invaders->bullets != 0) {
+    struct bullet *current_bullet = invaders->bullets;
+    while (current_bullet != 0) {
+      current_bullet->y += 1;
+      current_bullet = current_bullet->next_bullet;
+    }
+  }
+
   if (invaders->x <= 0 || invaders->x + 2*11 >= SCREEN_WIDTH) {
     invaders->mov_dir *= -1;
     invaders->y += 1;
@@ -135,7 +183,7 @@ void clean_object_collision(struct Player *player, struct Invaders *invaders) {
     while (current_bullet != 0) {
       // remove all bullets that are offscreen 
       if (current_bullet->y < 0) {
-        current_bullet = pop_bullet(player, current_bullet);
+        current_bullet = pop_bullet(&player->bullets, current_bullet);
         if (current_bullet == 0) {
           break;
         }
@@ -174,6 +222,19 @@ void clean_object_collision(struct Player *player, struct Invaders *invaders) {
       }
     }
   }
+
+  if (invaders->bullets != 0) {
+    struct bullet *current_bullet = invaders->bullets;
+    while (current_bullet != 0) {
+      if (current_bullet->y > SCREEN_HEIGHT) {
+        current_bullet = pop_bullet(&invaders->bullets, current_bullet);
+      }
+      if (current_bullet->x == player->x && current_bullet->y == player->y) {
+        mvprintw(0,0, "game over");
+      }
+      current_bullet = current_bullet->next_bullet;
+    }
+  }
 }
 
 int main() {
@@ -210,6 +271,10 @@ int main() {
     draw_game(&player, &invaders);
     mvprintw(invaders.y, invaders.x, &player.skin);
 
+    //if (player.bullets != 0) {
+    //  mvprintw(0, 0, "%p", get_last_bullet(player.bullets));
+    //}
+
     c = 'e';
     while ((tmp = getch()) != EOF) {
       c = tmp;
@@ -236,6 +301,7 @@ int main() {
     }
 
     update_coords(&player, &invaders);
+    invaders_fire(&invaders);
     clean_object_collision(&player, &invaders); // collisions of objects that do not terminate game (no player collision)    
 
     refresh();
