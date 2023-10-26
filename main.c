@@ -6,12 +6,10 @@
 
 #define N_INVADERS 55
 #define PROB_MAX_VALUE 6
+
 int SCREEN_WIDTH, SCREEN_HEIGHT;
 int SCORE;
-
-// TODO: check for hits
-// TODO: new animation cycle
-// TODO: fix memory issues
+bool GAME_OVER;
  
 struct Player {
   signed int x;
@@ -222,15 +220,16 @@ void clean_object_collision(struct Player *player, struct Invaders *invaders) {
       }
     }
   }
-
   if (invaders->bullets != 0) {
     struct bullet *current_bullet = invaders->bullets;
+    while (current_bullet->y > SCREEN_HEIGHT) {
+      current_bullet = pop_bullet(&invaders->bullets, current_bullet);
+    }
+
     while (current_bullet != 0) {
-      if (current_bullet->y > SCREEN_HEIGHT) {
-        current_bullet = pop_bullet(&invaders->bullets, current_bullet);
-      }
       if (current_bullet->x == player->x && current_bullet->y == player->y) {
         mvprintw(0,0, "game over");
+        GAME_OVER = true;
       }
       current_bullet = current_bullet->next_bullet;
     }
@@ -269,7 +268,6 @@ int main() {
     clear();
 
     draw_game(&player, &invaders);
-    mvprintw(invaders.y, invaders.x, &player.skin);
 
     c = 'e';
     while ((tmp = getch()) != EOF) {
@@ -299,11 +297,32 @@ int main() {
     update_coords(&player, &invaders);
     invaders_fire(&invaders);
     clean_object_collision(&player, &invaders); // collisions of objects that do not terminate game (no player collision)    
-
+  
+    if (SCORE == 100*N_INVADERS) {
+      GAME_OVER = true;
+    }
+ 
     refresh();
+
+    if (GAME_OVER) {
+      quit = true;
+    }
+
     napms(80);
   }
-  endwin();
 
+  if (GAME_OVER) { 
+    while (true) {
+      clear();
+      mvprintw(SCREEN_WIDTH/2-4, SCREEN_HEIGHT/2, "GAME OVER");
+  
+      c = getch();
+      if (c == 'q') {
+        break;
+      }
+    }
+  }
+
+  endwin();
   return 0;
 }
